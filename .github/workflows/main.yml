@@ -29,14 +29,6 @@ jobs:
           path: .git/lfs
           key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
 
-      - name: Unity Library キャッシュの復元
-        uses: actions/cache@v3
-        with:
-          path: TestGitHubActions/Library
-          key: Library-${{ hashFiles('TestGitHubActions/Assets/**', 'TestGitHubActions/Packages/**', 'TestGitHubActions/ProjectSettings/**') }}
-          restore-keys: |
-            Library-
-
   build:
     needs: cache
     name: 手動ビルド
@@ -44,6 +36,14 @@ jobs:
     steps:
       - name: リポジトリのコードを取得
         uses: actions/checkout@v4
+
+      - name: Unity Library キャッシュの復元
+        uses: actions/cache@v3
+        with:
+          path: TestGitHubActions/Library
+          key: Library-${{ hashFiles('TestGitHubActions/Assets/**', 'TestGitHubActions/Packages/**', 'TestGitHubActions/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
 
       - name: Git LFS のデータ取得
         run: |
