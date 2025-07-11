@@ -75,6 +75,14 @@ jobs:
           name: Build-Windows
           path: build
 
+      - name: Unity Library キャッシュの保存
+        uses: actions/cache@v3
+        with:
+          path: TestGitHubActions/Library
+          key: Library-${{ hashFiles('TestGitHubActions/Assets/**', 'TestGitHubActions/Packages/**', 'TestGitHubActions/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
       # ビルド成功の通知（Discord）
       - name: ビルド成功通知
         if: success()
