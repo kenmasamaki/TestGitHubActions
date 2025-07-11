@@ -41,6 +41,7 @@ jobs:
         run: rm -rf TestGitHubActions/Library
 
       - name: Unity Library キャッシュの復元
+        id: cache-lib
         uses: actions/cache@v3
         with:
           path: TestGitHubActions/Library
@@ -79,6 +80,7 @@ jobs:
           path: build
 
       - name: Unity Library キャッシュの保存
+        if: steps.cache-lib.outputs.cache-hit != 'true' && success()
         uses: actions/cache@v3
         with:
           path: TestGitHubActions/Library
