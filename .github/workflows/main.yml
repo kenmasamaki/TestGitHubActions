@@ -1,0 +1,92 @@
+# GitHub Actions のワークフロー名
+name: 手動ビルド
+
+# ワークフローのトリガー設定
+on:
+  # masterブランチのpush時に実行
+  push:
+    branches:
+      - master
+  # 手動実行
+  workflow_dispatch: {}
+
+# ジョブの定義
+jobs:
+  cache:
+    name: Cache Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのコードを取得
+        uses: actions/checkout@v4
+
+      - name: LFSファイルリストの作成
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: LFSキャッシュの復元
+        uses: actions/cache@v3
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+
+      - name: Unity Library キャッシュの復元
+        uses: actions/cache@v3
+        with:
+          path: TestGitHubActions/Library
+          key: Library-${{ hashFiles('TestGitHubActions/Assets/**', 'TestGitHubActions/Packages/**', 'TestGitHubActions/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+  build:
+    needs: cache
+    name: 手動ビルド
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのコードを取得
+        uses: actions/checkout@v4
+
+      - name: Git LFS のデータ取得
+        run: |
+          git lfs pull
+          git add .
+          git reset --hard
+
+      # ビルド開始の通知（Discord）
+      - name: ビルド開始通知
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "content": "🚀 Unity 手動ビルド開始！\nブランチ: ${{ github.ref }}\nコミット: ${{ github.sha }}\nリポジトリ: ${{ github.repository }}\nURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Windows向けビルドを実行
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          targetPlatform: StandaloneWindows64
+          unityVersion: 2022.3.62f1
+          projectPath: TestGitHubActions
+
+      - name: ビルド成果物を ZIP にしてアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Windows
+          path: build
+
+      # ビルド成功の通知（Discord）
+      - name: ビルド成功通知
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "content": "✅ Unity 手動ビルド成功 🎉\nブランチ: ${{ github.ref }}\nコミット: ${{ github.sha }}\nリポジトリ: ${{ github.repository }}\nURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # ビルド失敗の通知（Discord）
+      - name: ビルド失敗通知
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "content": "❌ Unity 手動ビルド失敗 💥\nブランチ: ${{ github.ref }}\nコミット: ${{ github.sha }}\nリポジトリ: ${{ github.repository }}\nURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL }}
